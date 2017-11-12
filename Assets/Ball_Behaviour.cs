@@ -8,6 +8,7 @@ public class Ball_Behaviour : MonoBehaviour {
     public Rigidbody ballRigid;
     public Mesh debugTetherMesh; //DEBUG ONLY
     public float rollTorqueMultiplier = 1;
+    public float maxAngularVelocity = 10;
     public float jumpForce = 1;
     public float ropeRange = 5;
     float mouseYaw = 0;
@@ -38,6 +39,7 @@ public class Ball_Behaviour : MonoBehaviour {
     // Use this for initialization
     void Start () {
         Cursor.lockState = CursorLockMode.Locked;
+        ballRigid.maxAngularVelocity = maxAngularVelocity;
 	}
 	
 
@@ -83,8 +85,8 @@ public class Ball_Behaviour : MonoBehaviour {
 
         Quaternion cameraOrientation = Quaternion.FromToRotation(Vector3.up, upDirection) * Quaternion.Euler((mousePitch * 120) - 75, (mouseYaw * 360), 0);
 
-        followCamera.transform.position = (cameraOrientation * cameraOffsetTarget)  + transform.position;
-        followCamera.transform.rotation = cameraOrientation;
+        //followCamera.transform.position = (cameraOrientation * cameraOffsetTarget)  + transform.position;
+        //followCamera.transform.rotation = cameraOrientation;
 
         Debug.Log(upDirection);
 
@@ -94,6 +96,21 @@ public class Ball_Behaviour : MonoBehaviour {
         RaycastHit lookCastHit;
         RaycastHit ballCastHit;
 
+        //NEW SWING CASTING SYSTEM FOR NODES HERE##############################################################################################################
+        Collider[] nodeColInRange = Physics.OverlapSphere(transform.position, ropeRange, LayerMask.NameToLayer("Swing Nodes"));
+
+        float distToClosestNode = Mathf.Infinity;
+        Transform closestNodeTransform = null;
+        foreach (Collider col in nodeColInRange)
+        {
+            float distance = Vector3.Distance(transform.position, col.transform.position); //Change transform.position to target point in future for aiming
+            if (distance > distToClosestNode) {
+                distToClosestNode = distance;
+                closestNodeTransform = col.transform;
+            }
+        }
+        
+        
         //WILL HAVE TO MAKE LOOKHITPOINT A CHILD OF HIT TARGET#################################################################################################
         bool lookCast = Physics.Raycast(followCamera.transform.position, followCamera.transform.forward, out lookCastHit, ropeRange * 2);
         bool ballCast = false;
@@ -142,7 +159,7 @@ public class Ball_Behaviour : MonoBehaviour {
             else ballRigid.useGravity = true;
 
         }
-        else { ballRigid.useGravity = true; ballRigid.drag = 1; }
+        else { ballRigid.useGravity = true; ballRigid.drag = 0.2f; }
 
         Debug.DrawLine(transform.position, transform.position + ballRigid.velocity, Color.cyan);
     }
