@@ -11,6 +11,8 @@ public class Ball_Behaviour : MonoBehaviour {
     public float maxAngularVelocity = 10;
     public float jumpForce = 1;
     public float ropeRange = 5;
+    public LayerMask swingNodeLayer;
+    public PhysicMaterial swingableMat;
     float mouseYaw = 0;
     float mousePitch = 0.5f;
     Vector3 contactNormalAvg = Vector3.up;
@@ -85,38 +87,49 @@ public class Ball_Behaviour : MonoBehaviour {
 
         Quaternion cameraOrientation = Quaternion.FromToRotation(Vector3.up, upDirection) * Quaternion.Euler((mousePitch * 120) - 75, (mouseYaw * 360), 0);
 
-        //followCamera.transform.position = (cameraOrientation * cameraOffsetTarget)  + transform.position;
-        //followCamera.transform.rotation = cameraOrientation;
-
-        Debug.Log(upDirection);
-
+        followCamera.transform.position = (cameraOrientation * cameraOffsetTarget)  + transform.position;
+        followCamera.transform.rotation = cameraOrientation;
 
 
         //SHOOTING SPIDEY WEB------------------------------------------------------------------------------------------
         RaycastHit lookCastHit;
         RaycastHit ballCastHit;
+        RaycastHit swingCastHit;
 
         //NEW SWING CASTING SYSTEM FOR NODES HERE##############################################################################################################
-        Collider[] nodeColInRange = Physics.OverlapSphere(transform.position, ropeRange, LayerMask.NameToLayer("Swing Nodes"));
+        Collider[] nodeColInRange = Physics.OverlapSphere(transform.position, ropeRange, swingNodeLayer);
 
         float distToClosestNode = Mathf.Infinity;
         Transform closestNodeTransform = null;
-        foreach (Collider col in nodeColInRange)
-        {
+        foreach (Collider col in nodeColInRange) {
+
+            //CHECK ANGLE OF NODE NORMAL AND "CONTINIUE;" IF TOO BIG
+            
             float distance = Vector3.Distance(transform.position, col.transform.position); //Change transform.position to target point in future for aiming
-            if (distance > distToClosestNode) {
+            if (distance < distToClosestNode) {
                 distToClosestNode = distance;
                 closestNodeTransform = col.transform;
             }
         }
-        
+
+        //SWING TO CLOSEST NODE--------------------------------------------------------------------------------------------------------------------------------
+        if (Input.GetButtonDown("Fire1") && closestNodeTransform != null) {
+            bool swingCast = Physics.Raycast(transform.position, Vector3.Normalize(closestNodeTransform.position - transform.position), out swingCastHit, ropeRange);
+            if (swingCastHit.collider.material.GetType() == swingableMat.GetType()) {
+                swingTether = new GameObject("SwingTether");
+                swingTether.AddComponent<MeshFilter>();
+                swingTether.GetComponent<MeshFilter>().mesh = debugTetherMesh;
+                swingTether.AddComponent<MeshRenderer>();
+                swingTether.transform.position = swingCastHit.point;
+            }
+        }
         
         //WILL HAVE TO MAKE LOOKHITPOINT A CHILD OF HIT TARGET#################################################################################################
         bool lookCast = Physics.Raycast(followCamera.transform.position, followCamera.transform.forward, out lookCastHit, ropeRange * 2);
         bool ballCast = false;
 
 
-        //CHANGE THIS, CAN ONLY BE ON WILST LOOKING AT TARGET
+        //CHANGE THIS, CAN ONLY BE ON WILST LOOKING AT TARGET ----------> PUT SWINGSHIT IN A FUNCTION WITH ARGS SWING POSITION, SWING GO AND MAYBE MORE
         if (Input.GetButtonDown("Fire1") && lookCast) {
             Vector3 ballRopeDirection = Vector3.Normalize(lookCastHit.point - transform.position);
             ballCast = Physics.Raycast(transform.position, ballRopeDirection, out ballCastHit, ropeRange * 2);
@@ -132,7 +145,6 @@ public class Ball_Behaviour : MonoBehaviour {
 
         if (swingTether != null) {
             if (Input.GetButtonUp("Fire1")) Destroy(swingTether);
-            Debug.Log(swingTether.transform.position);
             //Position of ball on next frame
             Vector3 ballPosPredict = (ballRigid.velocity * Time.deltaTime) + transform.position;
             //Distance ball might be from tether on next frame
